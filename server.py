@@ -8,8 +8,7 @@ def comm_thread(conn, addr):
         data = conn.recv(1024)
 
         # Daca functia recv returneaza None, clientul a inchis conexiunea
-        if not data:
-            break
+        if not data: break
         print(addr, ' a trimis: ', data)
 
         # Trimite inapoi datele receptionate
