@@ -1,13 +1,12 @@
-#import server_gui
-import server_communication
+import server_gui
 
 
 def main():
-    communication = server_communication.Communication()
-    communication.start_server()
+    # communication = server_communication.Communication()
+    # communication.start_server()
 
-    # gui = server_gui.GUI()
-    # gui.open_application()
+    gui = server_gui.GUI()
+    gui.open_application()
 
 
 if __name__ == '__main__':

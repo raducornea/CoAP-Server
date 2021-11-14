@@ -9,42 +9,46 @@ class Communication:
         self.dip = "127.0.0.1"  # local ip both client and server have
         self.sport = 2555  # my port
         self.dport = 2554  # peer port
-
         self.bufferSize = 1024
-        self.started = False  # compare with running?
 
         # Creare socket UDP
         self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-
         self.running = False
+        self.receive_thread = threading.Thread(target=self.receive_fct, args=(self.s,))
 
     def close_server(self):
-        print('Server Closed')
-        self.started = False
+        self.running = False
+        self.receive_thread.join()
+        self.s.close()
 
     def start_server(self):
         print('Server Started')
-        self.started = True
+        self.__init__()
         self.s.bind(("127.0.0.1", int(self.sport)))
         self.communicate()
 
     def communicate(self):
         self.running = True
         try:
-            receive_thread = threading.Thread(target=self.receive_fct, args=(self.s,))
-            receive_thread.start()
+            self.receive_thread = threading.Thread(target=self.receive_fct, args=(self.s, ))
+            self.receive_thread.start()
         except:
             print("Eroare la pornirea thread‐ului")
             sys.exit()
 
         while True:
             try:
+                # TODO: de corectat cand pornesc serverul
+                # https://stackoverflow.com/questions/16745507/tkinter-how-to-use-threads-to-preventing-main-event-loop-from-freezing
+                # cozi de mesaje???
                 data = input("Trimite: ")
-                self.s.sendto(bytes(data, encoding="ascii"), (self.dip, int(self.dport)))
+
+                if data is not None:
+                    self.s.sendto(bytes(data, encoding="ascii"), (self.dip, int(self.dport)))
             except KeyboardInterrupt:
                 self.running = False
                 print("Waiting for the thread to close...")
-                receive_thread.join()
+                self.receive_thread.join()
                 break
 
     def receive_fct(self, s):
