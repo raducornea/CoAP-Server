@@ -2,30 +2,61 @@ import socket
 import time
 
 
-UDP_IP = "127.0.0.1"
-UDP_PORT = 5000
+import threading
+import socket
+import sys
+import select
+
+
+def receive_fct(s):
+    global running
+    contor = 0
+    while running:
+        # Apelam la functia sistem IO -select- pentru a verifca daca socket-ul are date in bufferul de receptie
+        # Stabilim un timeout de 1 secunda
+        r, _, _ = select.select([s], [], [], 1)
+        if not r:
+            contor = contor + 1
+        else:
+            data, address = s.recvfrom(1024)
+            print("S-a receptionat ", str(data), " de la ", address)
+            print("Contor= ", contor)
 
 
 def main():
-    for pings in range(10):
-        # Creaza un socket IPv4, UDP
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    # communication = server_communication.Communication()
+    # communication.start_server()
 
-        s.settimeout(1)
+    # gui = server_gui.GUI()
+    # gui.open_application()
 
-        message = b'test'
-        addr = (UDP_IP, UDP_PORT)
+    global running
 
-        start = time.time()
+    sport = 2554  # my port
+    dport = 2555  # peer port
+    dip = "127.0.0.1"  # peer ip
 
-        s.sendto(message, addr)
+    # Creare socket UDP
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    s.bind((dip, int(sport)))
+
+    running = True
+    try:
+        receive_thread = threading.Thread(target=receive_fct, args=(s,))
+        receive_thread.start()
+    except:
+        print("Eroare la pornirea thread‐ului")
+        sys.exit()
+
+    while True:
         try:
-            data, server = s.recvfrom(1024)
-            end = time.time()
-            elapsed = end - start
-            print(data)
-        except socket.timeout:
-            print('Request timed out')
+            data = input("Trimite: ")
+            s.sendto(bytes(data, encoding="ascii"), (dip, int(dport)))
+        except KeyboardInterrupt:
+            running = False
+            print("Waiting for the thread to close...")
+            receive_thread.join()
+            break
 
 
 if __name__ == '__main__':

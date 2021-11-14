@@ -1,10 +1,13 @@
-import server_gui
+#import server_gui
 import server_communication
 
 
 def main():
-    #server_communication.start_server()
-    server_gui.start_application()
+    communication = server_communication.Communication()
+    communication.start_server()
+
+    # gui = server_gui.GUI()
+    # gui.open_application()
 
 
 if __name__ == '__main__':
@@ -17,4 +20,5 @@ https://pythontic.com/modules/socket/udp-client-server-example
 https://docs.python.org/3/library/tkinter.html
 https://docs.python.org/3/library/socket.html
 https://www.geeksforgeeks.org/how-to-use-thread-in-tkinter-python/
+https://github.com/nicolaebotezatu/RC-P/blob/main/Non-blocking%20UDP%20peers/udp_peer.py
 """
