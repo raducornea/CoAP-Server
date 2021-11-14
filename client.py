@@ -2,25 +2,30 @@ import socket
 import time
 
 
+UDP_IP = "127.0.0.1"
+UDP_PORT = 5000
+
+
 def main():
-    # Creaza un socket IPv4, TCP
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # Conectare la serverul care asculta pe portul 5000
-    s.connect(('127.0.0.1', 5000))
+    for pings in range(10):
+        # Creaza un socket IPv4, UDP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    for i in range(3, 10):
-        # Trimite date
-        s.sendall(bytes('Ana are ' + str(i) + ' mere', encoding="ascii"))
+        s.settimeout(1)
 
-        # Asteapta date
-        data = s.recv(1024)
-        print('Am receptionat: ', data)
+        message = b'test'
+        addr = (UDP_IP, UDP_PORT)
 
-        # Asteapta o secunda
-        time.sleep(1)
+        start = time.time()
 
-    # Inchide conexiune
-    s.close()
+        s.sendto(message, addr)
+        try:
+            data, server = s.recvfrom(1024)
+            end = time.time()
+            elapsed = end - start
+            print(data)
+        except socket.timeout:
+            print('Request timed out')
 
 
 if __name__ == '__main__':
