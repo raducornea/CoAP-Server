@@ -2,15 +2,22 @@ import server_gui
 
 
 def main():
-    # communication = server_communication.Communication()
-    # communication.start_server()
-
     gui = server_gui.GUI()
     gui.open_application()
 
 
 if __name__ == '__main__':
     main()
+
+
+
+
+
+
+
+
+
+
 
 
 """
