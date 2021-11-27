@@ -1,7 +1,10 @@
 from tkinter import *
+import file_system as fs  # circular import error prevention
 
 
 class GUI:
+    console_message = ''
+
     def __init__(self):
         # window root
         self.window = Tk()
@@ -61,6 +64,20 @@ class GUI:
 
         self.print_message("Server is On!")
 
+        fs.FileSystem.__init__()
+        fs.FileSystem.get_current_work_directory()
+
+        fs.FileSystem.new_file()
+        fs.FileSystem.new_directory()
+
+        print(fs.FileSystem.get_current_work_directory())
+        fs.FileSystem.set_path(fs.FileSystem.current_path + "\\" + 'Temporary File')
+        print(fs.FileSystem.get_current_work_directory())
+
+        fs.FileSystem.new_file()
+        fs.FileSystem.new_directory()
+
+        self.print_message(self.__class__.console_message)
         # self.thread = threading.Thread(target=self.communication.start_server)
         # self.thread.start()
 
@@ -93,8 +110,14 @@ class GUI:
         self.text_box.insert(END, ">> " + message + "\n")  # 1.0 insereaza la inceput / END insereaza la sfarsit
         self.text_box.config(state=DISABLED)
 
+    @classmethod
+    def console(cls, message):
+        cls.console_message = message
+
     # open the application when running main
     def open_application(self):
+        self.__class__.console_message = ''
+
         # set window attributes
         self.window.geometry("600x400")
         self.window.resizable(0, 0)
