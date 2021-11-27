@@ -1,9 +1,13 @@
 from tkinter import *
+from tkinter import messagebox
 import file_system as fs  # circular import error prevention
+import server_logic as server
+import threading
 
 
 class GUI:
     console_message = ''
+    thread = threading.Thread(target=server.Logic.server_start)
 
     def __init__(self):
         # window root
@@ -50,12 +54,12 @@ class GUI:
                              font="arial 10",
                              bg="white")
 
-        # self.communication = server_communication.Communication()
-        # self.thread = threading.Thread(target=self.communication.start_server)
-
     # attempt to start the server
     def start_server(self):
-        # self.communication = server_communication.Communication()
+        # Start Server on a new Thread
+        server.Logic.__init__()
+        self.__class__.thread = threading.Thread(target=server.Logic.server_start)
+        self.__class__.thread.start()
 
         print('--Starting Server')
         self.button_start.place_forget()
@@ -64,37 +68,43 @@ class GUI:
 
         self.print_message("Server is On!")
 
+        # sets file system to absolute path
         fs.FileSystem.__init__()
-        fs.FileSystem.get_current_work_directory()
 
+        # newFile
         fs.FileSystem.new_file()
-        fs.FileSystem.new_directory()
-
-        print(fs.FileSystem.get_current_work_directory())
-        fs.FileSystem.set_path(fs.FileSystem.current_path + "\\" + 'Temporary File')
-        print(fs.FileSystem.get_current_work_directory())
-
-        fs.FileSystem.new_file()
-        fs.FileSystem.new_directory()
-
         self.print_message(self.__class__.console_message)
-        # self.thread = threading.Thread(target=self.communication.start_server)
-        # self.thread.start()
+
+        # newDir
+        fs.FileSystem.new_directory()
+        self.print_message(self.__class__.console_message)
+
+        # cwd
+        cwd = fs.FileSystem.get_current_work_directory()
+        self.print_message(cwd)
+
+        # chdir
+        fs.FileSystem.set_path(fs.FileSystem.current_path + "\\" + 'Temporary File')
+        # cwd
+        cwd = fs.FileSystem.get_current_work_directory()
+        self.print_message(cwd)
 
     # attempt to close the server
     def close_server(self):
+        server.Logic.server_stop()
+
         print('--Closing Server')
         self.button_stop.place_forget()
         self.button_start.place(x=468, y=0)
         self.print_message("Server is Off!")
 
-        # self.communication.close_server()
-
     # terminate application execution
     def exit_application(self):
-        print('--Exiting Application')
-        # self.communication.close_server()
-        self.window.destroy()
+        if messagebox.askokcancel("Quit", "Do you want to quit?"):
+            server.Logic.server_stop()
+
+            print('--Exiting Application')
+            self.window.destroy()
 
     # clears the screen with a button
     def clear_screen(self):
@@ -132,6 +142,9 @@ class GUI:
         # friendly message helper
         self.print_message("Welcome to the Server Interface!\n"
                            ">> To browse the File System, use the Client and type os commands like 'cwd'!")
+
+        # x button messagebox and function
+        self.window.protocol("WM_DELETE_WINDOW", self.exit_application)
 
         # loop the application
         self.window.mainloop()
