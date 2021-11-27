@@ -1,5 +1,6 @@
 import os
 import server_gui as gui
+import server_logic as server
 
 
 class FileSystem:
@@ -32,26 +33,35 @@ class FileSystem:
         try:
             os.mkdir(dir_name)
             message = "Directory " + dir_name + " created"
-            gui.GUI.console(message)
+            send_message_to_listeners(message)
             print(message)
         except FileExistsError:
             message = "Directory " + dir_name + " already exists"
-            gui.GUI.console(message)
+            send_message_to_listeners(message)
             print(message)
 
     # (newFile) - new file in the current work path
     @classmethod
     def new_file(cls, file_name='tempFile.txt'):
         if os.path.exists(cls.current_path + '/' + file_name):
-            print("vvFile", file_name, "already exists")
+            message = "File " + file_name + " already exists"
+            send_message_to_listeners(message)
+            print(message)
         else:
             with open(file_name, mode='a'):
-                print("vvFile", file_name, "created")
+                message = "File " + file_name + " created"
+                send_message_to_listeners(message)
+                print(message)
 
-    #  (ls) - list existing files and directories in the current work path
+    # (ls) - list existing files and directories in the current work path
     @classmethod
     def list_files_and_directories(cls):
         files = list(filter(os.path.isfile, os.listdir(cls.current_path)))
         directories = list(filter(os.path.isdir, os.listdir(cls.current_path)))
 
         print(directories + files)
+
+
+def send_message_to_listeners(message):
+    gui.GUI.console(message)
+    server.Logic.set_data(message)
