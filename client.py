@@ -1,7 +1,3 @@
-import socket
-import time
-
-
 import threading
 import socket
 import sys
@@ -12,8 +8,6 @@ def receive_fct(s):
     global running
     contor = 0
     while running:
-        # Apelam la functia sistem IO -select- pentru a verifca daca socket-ul are date in bufferul de receptie
-        # Stabilim un timeout de 1 secunda
         r, _, _ = select.select([s], [], [], 1)
         if not r:
             contor = contor + 1
@@ -24,16 +18,11 @@ def receive_fct(s):
 
 
 def main():
-    # communication = server_communication.Communication()
-    # communication.start_server()
-
-    # gui = server_gui.GUI()
-    # gui.open_application()
-
+    # interfata client (butoane pentru start/stop, conn/disconn, clear screen, confirmable, exit)
     global running
 
-    sport = 2554  # my port
-    dport = 2555  # peer port
+    sport = 2000  # my port
+    dport = 2001  # peer port
     dip = "127.0.0.1"  # peer ip
 
     # Creare socket UDP
