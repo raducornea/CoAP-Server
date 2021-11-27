@@ -51,7 +51,7 @@ class Logic:
             data = cls.data
             if data is not None:
                 cls.server_socket.sendto(bytes(data, encoding="ascii"), (cls.ip, int(cls.client_port)))
-                # cls.data = None
+                cls.data = None
             if not cls.running:
                 print("TTT Waiting for the thread to close...")
                 cls.receive_thread.join()
