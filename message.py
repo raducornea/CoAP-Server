@@ -1,6 +1,12 @@
+import struct
 from struct import *
 import array
 from coap import CoAP as coap
+
+
+def unpack_helper(fmt, data):
+    size = struct.calcsize(fmt)
+    return struct.unpack(fmt, data[:size]), data[size:]
 
 
 class Message:
@@ -8,24 +14,28 @@ class Message:
         # 1 byte: VER + Type + Token Length
         self.msg_version = 1  # 2 bits
         self.msg_type = 1  # 2 bits
-        self.msg_token_length = 3  # 4 bits
+        self.msg_token_length = 1  # 4 bits
 
         # 1 byte: Request/Response Code (Class)(Code)
-        self.msg_class = 0  # 0 1 2 - 3 bits
-        self.msg_code = 0  # 3 4 5 6 7 - 5 bits
+        self.msg_class = 1  # 0 1 2 - 3 bits
+        self.msg_code = 6  # 3 4 5 6 7 - 5 bits
 
         # 2 bytes: Message ID
         self.msg_id = 0xFffF  # 16 bits
 
         # 0 - 8 bytes: Token
-        self.token = 5
+        self.token = 0
 
         # 1 byte of 1111 1111
         # 0 - 3 bytes: Payload (if available) -> The message
         self.payload = 'asdf gkj'
 
-    @classmethod
-    def decode_message(cls, message: bytes):
+    def decode_message(self, message):
+        message, my_string = unpack_helper('i i i i i ', message)
+
+        print(message)
+        print(my_string)
+
         msg_version = (0xC0 & message[0]) >> 6
         msg_type = (0x30 & message[0]) >> 4
         msg_token_length = (0x0F & message[0]) >> 0
@@ -43,10 +53,19 @@ class Message:
 
         token = 0
         if msg_token_length:
-            token = message[4:4 + msg_token_length]
+            token = message[4]
 
-        payload = message[5 + msg_token_length:].decode('utf-8')
-        return cls(payload, msg_type, msg_class, msg_code, msg_id, msg_token_length, msg_version=1, token=0)
+        my_string = my_string.replace(b'\x00', b'')
+        payload = my_string.decode("utf-8")
+
+        print(msg_version)
+        print(msg_type)
+        print(msg_token_length)
+        print(msg_class)
+        print(msg_code)
+        print(msg_id)
+        print(token)
+        print(payload)
 
     def encode_message(self):
         """ primul octet """
@@ -82,7 +101,7 @@ class Message:
         message.append(self.payload)
 
         # prepare message to get packed
-        packed_data = pack('i i i i i ' + str(len(self.payload)) + 's',
+        packed_data = pack('i i i i i 11s',
                            message[0], message[1], message[2], message[3], message[4], message[5].encode())
 
         return packed_data
