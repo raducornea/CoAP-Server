@@ -1,7 +1,6 @@
 import struct
 from struct import *
 import array
-from coap import CoAP as coap
 
 
 def unpack_helper(fmt, data):
