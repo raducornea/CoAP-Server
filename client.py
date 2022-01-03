@@ -23,7 +23,7 @@ def main():
 
     sport = 2000  # my port
     dport = 2001  # peer port
-    dip = "127.0.0.1"  # peer ip
+    dip = "127.0.0.2"  # peer ip
 
     # Creare socket UDP
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)

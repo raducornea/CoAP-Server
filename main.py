@@ -27,8 +27,8 @@ def main():
     my_message.print_details()
 
     packed_data = my_message.encode_message()
-    unpacked_data = unpack('i i i i i 8s', packed_data)
-    print(unpacked_data)
+    print(packed_data)
+    my_message.decode_message(packed_data)
 
     gui = server_gui.GUI()
     gui.open_application()
