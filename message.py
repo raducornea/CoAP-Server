@@ -2,6 +2,8 @@ import struct
 from struct import *
 import array
 
+from file_system import send_message_to_listeners
+
 
 def unpack_helper(fmt, data):
     size = struct.calcsize(fmt)
@@ -44,11 +46,8 @@ class Message:
 
         msg_id = (message[2] << 8) | message[3]
 
-        if msg_version != 1:
-            print("Error")
-
-        if 9 <= msg_token_length <= 15:
-            print("Error")
+        self.err_msg_ver(msg_version)
+        self.err_msg_tok(msg_token_length)
 
         token = 0
         if msg_token_length:
@@ -105,19 +104,17 @@ class Message:
 
         return packed_data
 
-    def get_message(self, msg_version, msg_type, msg_token_length, msg_class, msg_code, msg_id, token, payload):
-        self.msg_version = format(msg_version, '02b')
-        self.msg_type = format(msg_type, '02b')
-        self.msg_token_length = format(msg_token_length, '04b')
-        self.msg_class = format(msg_class, '03b')
-        self.msg_code = format(msg_code, '05b')
-        self.msg_id = format(msg_id, '016b')
-        self.token = format(token, '064b')
-        # self.payload_marker = format('11111111', '08b')
-        self.payload = format(payload, '024b')
+    def err_msg_tok(self, msg_token_length):
+        if 9 <= msg_token_length <= 15:
+            message = "Eroare la token"
+            send_message_to_listeners(message)
+            print(message)
 
-        message = [[msg_version], [msg_type], [msg_token_length], [msg_class], [msg_code], [msg_id], [token], [payload]]
-        return message
+    def err_msg_ver(self, msg_version):
+        if msg_version != 1:
+            message = "Eroare la version"
+            send_message_to_listeners(message)
+            print(message)
 
     def get_version(self):
         return int(str(self.msg_version), 2)
