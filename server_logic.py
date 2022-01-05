@@ -4,28 +4,34 @@ import select
 
 
 class Logic:
-    server_socket = None
-    ip = ""  # ip for client and server
+    client_ips = []  # clients ip
+    client_ports = []  # clients port
+
+    server_ip = ""  # server ip
     server_port = 0  # server port
-    client_port = 0  # client port
+    server_socket = None
+
     data = None
     running = False
     receive_thread = None
 
     # TODO
-    #  - make ip addresses into a list of connected [connected ips]
     #  - each time a client connects => add it into [connected ips] + remove from list when [disconnected]
 
     @classmethod
     def __init__(cls):
-        cls.ip = "127.0.0.1"  # local ip both client and server have  # ip-ul clientului  172.20.10.4
+        # adresa ip a server-ului
+        cls.server_ip = "127.0.0.1"
         cls.server_port = 2001  # my port
-        cls.client_port = 2000  # peer port
         cls.data = None
 
         cls.server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        cls.server_socket.bind(("127.0.0.2", cls.server_port))  # asta ar trebui scoasa -> de abia cand primeste mesaj
+        cls.server_socket.bind((cls.server_ip, cls.server_port))  # asta ar trebui scoasa -> de abia cand primeste mesaj
         # realizeaza conexiunea cu ip-ul pe care il primeste
+
+        # adresele clientilor # ip-ul clientului 172.20.10.4
+        cls.client_ips = ["127.0.0.2", "127.0.0.3"]  # clients ips
+        cls.client_ports = [2000, 2000]  # clients ports
 
         cls.running = False
         cls.receive_thread = threading.Thread(target=cls.receive_fct, args=(cls.server_socket,))
@@ -33,7 +39,7 @@ class Logic:
     @classmethod
     def server_start(cls):
         cls.running = True
-        cls.send_to_client()
+        cls.send_to_clients()
 
     @classmethod
     def server_stop(cls):
@@ -44,7 +50,7 @@ class Logic:
         cls.data = data
 
     @classmethod
-    def send_to_client(cls):
+    def send_to_clients(cls):
         try:
             cls.receive_thread = threading.Thread(target=cls.receive_fct)
             cls.receive_thread.start()
@@ -56,7 +62,13 @@ class Logic:
             data = cls.data
             if data is not None:
                 # data ar trebui sa fie efectiv tot pachetul cu toate campurile inclusiv payload ca json
-                cls.server_socket.sendto(bytes(data, encoding="ascii"), (cls.ip, int(cls.client_port)))
+
+                # trimitem tuturor clientilor acelasi mesaj
+                for i in range(len(cls.client_ports)):
+                    ip = cls.client_ips[i]
+                    port = cls.client_ports[i]
+                    cls.server_socket.sendto(bytes(data, encoding="ascii"), (ip, port))
+
                 # ar trebui modificat si el, incat sa se adapteze fiecarui ip noi primit din data de la client
                 cls.data = None
             if not cls.running:
