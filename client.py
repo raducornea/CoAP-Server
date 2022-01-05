@@ -18,16 +18,18 @@ def receive_fct(s):
 
 
 def main():
-    # interfata client (butoane pentru start/stop, conn/disconn, clear screen, confirmable, exit)
     global running
 
-    sport = 2000  # my port
-    dport = 2001  # peer port
-    dip = "127.0.0.2"  # peer ip
+    server_port = 2001
+    server_ip = "127.0.0.1"
+
+    # make sure every client is connected
+    client_port = 2000
+    client_ip = "127.0.0.2"
 
     # Creare socket UDP
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-    s.bind((dip, int(sport)))
+    s.bind((client_ip, int(client_port)))
 
     running = True
     try:
@@ -40,7 +42,7 @@ def main():
     while True:
         try:
             data = input("Trimite: ")
-            s.sendto(bytes(data, encoding="ascii"), (dip, int(dport)))
+            s.sendto(bytes(data, encoding="ascii"), (server_ip, int(server_port)))
         except KeyboardInterrupt:
             running = False
             print("Waiting for the thread to close...")
