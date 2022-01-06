@@ -4,8 +4,8 @@ import select
 
 
 class Logic:
-    client_ips = []  # clients ip
-    client_ports = []  # clients port
+    # addresses are tuples like: [("127.0.0.2", 2000), ("127.0.0.3", 2000)]
+    client_adresses = []
 
     server_ip = ""  # server ip
     server_port = 0  # server port
@@ -15,23 +15,18 @@ class Logic:
     running = False
     receive_thread = None
 
-    # TODO
-    #  - each time a client connects => add it into [connected ips] + remove from list when [disconnected]
-
     @classmethod
     def __init__(cls):
-        # adresa ip a server-ului
+        # server ip address & port
         cls.server_ip = "127.0.0.1"
-        cls.server_port = 2001  # my port
+        cls.server_port = 2001
         cls.data = None
 
         cls.server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        cls.server_socket.bind((cls.server_ip, cls.server_port))  # asta ar trebui scoasa -> de abia cand primeste mesaj
-        # realizeaza conexiunea cu ip-ul pe care il primeste
+        cls.server_socket.bind((cls.server_ip, cls.server_port))
 
-        # adresele clientilor # ip-ul clientului 172.20.10.4
-        cls.client_ips = ["127.0.0.2", "127.0.0.3"]  # clients ips
-        cls.client_ports = [2000, 2000]  # clients ports
+        # clients addresses # 172.20.10.4 e.g.
+        cls.client_adresses = []
 
         cls.running = False
         cls.receive_thread = threading.Thread(target=cls.receive_fct, args=(cls.server_socket,))
@@ -59,23 +54,27 @@ class Logic:
             return
 
         while True:
-            data = cls.data
-            if data is not None:
-                # data ar trebui sa fie efectiv tot pachetul cu toate campurile inclusiv payload ca json
+            # todo
+            #  data ar trebui sa fie efectiv tot pachetul
+            #  cu toate campurile inclusiv payload ca json
+            if cls.data is not None:
+                cls.message_clients(cls.data)
 
-                # trimitem tuturor clientilor acelasi mesaj
-                for i in range(len(cls.client_ports)):
-                    ip = cls.client_ips[i]
-                    port = cls.client_ports[i]
-                    cls.server_socket.sendto(bytes(data, encoding="ascii"), (ip, port))
-
-                # ar trebui modificat si el, incat sa se adapteze fiecarui ip noi primit din data de la client
-                cls.data = None
             if not cls.running:
                 print("TTT Waiting for the thread to close...")
+                cls.message_clients('Server has Quit!')
                 cls.receive_thread.join()
                 print("TTT Thread receive_thread closed")
                 break
+
+    @classmethod
+    def message_clients(cls, message):
+        # send clients the message
+        for i in range(len(cls.client_adresses)):
+            ip = cls.client_adresses[i][0]
+            port = cls.client_adresses[i][1]
+            cls.server_socket.sendto(bytes(message, encoding="ascii"), (ip, port))
+        cls.data = None
 
     @classmethod
     def receive_fct(cls):
@@ -87,7 +86,16 @@ class Logic:
             if not r:
                 counter = counter + 1
             else:
+                # server connects to clients as well when they send a message
                 data, address = cls.server_socket.recvfrom(1024)
                 print("Received ", str(data), " from ", address)
-                # aici ar trebui sa decodific data, incat sa aflu ip-ul
+
+                # add client address when client sends to server
+                if address not in cls.client_adresses:
+                    cls.client_adresses.append(address)
+
+                # remove client address if message is 'Disconnected'
+                if data == b'Disconnected':
+                    cls.client_adresses.remove(address)
+
                 print("Counter = ", counter)
