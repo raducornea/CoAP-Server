@@ -1,8 +1,9 @@
 import struct
 from struct import *
-import array
+import json
 
-from file_system import send_message_to_listeners
+import coap
+import file_system
 
 
 def unpack_helper(fmt, data):
@@ -11,7 +12,9 @@ def unpack_helper(fmt, data):
 
 
 class Message:
-    def __init__(self):
+    def __init__(self, architecture_type):
+        self.architecture_type = architecture_type  # server / client
+
         # 1 byte: VER + Type + Token Length
         self.msg_version = 1  # 2 bits
         self.msg_type = 1  # 2 bits
@@ -29,13 +32,21 @@ class Message:
 
         # 1 byte of 1111 1111
         # 0 - 3 bytes: Payload (if available) -> The message
-        self.payload = 'asdf gkj'
+        self.payload = {'command': 'aaaaa gfgggggg'}
 
-    def decode_message(self, message):
-        message, my_string = unpack_helper('i i i i i ', message)
+    # function for server only
+    def set_server_payload(self, command, response):
+        if self.architecture_type == 'Server':
+            self.payload = {'command': command, 'data': response}
 
-        print(message)
-        print(my_string)
+    # function for client only
+    def set_client_payload(self, command):
+        if self.architecture_type == 'Client':
+            self.payload = {'command': command}
+
+    def verify_format(self, message, command):
+        #todo
+        # add verifications for CoAP
 
         msg_version = (0xC0 & message[0]) >> 6
         msg_type = (0x30 & message[0]) >> 4
@@ -53,17 +64,26 @@ class Message:
         if msg_token_length:
             token = message[4]
 
-        my_string = my_string.replace(b'\x00', b'')
-        payload = my_string.decode("utf-8")
+        """
+        The absence of the  Payload Marker denotes a zero-length payload.  
+        The presence of a
+        marker followed by a zero-length payload MUST be processed as a
+        message format error.
+        """
 
-        print(msg_version)
-        print(msg_type)
-        print(msg_token_length)
-        print(msg_class)
-        print(msg_code)
-        print(msg_id)
-        print(token)
-        print(payload)
+        # print(msg_version)
+        # print(msg_type)
+        # print(msg_token_length)
+        # print(msg_class)
+        # print(msg_code)
+        # print(msg_id)
+        # print(token)
+        # print(payload)
+
+    def decode_message(self, message):
+        header_format, encoded_json = unpack_helper('i i i i i i ', message)
+        encoded_json = encoded_json.replace(b'\x00', b'')
+        return header_format, encoded_json
 
     def encode_message(self):
         """ primul octet """
@@ -84,8 +104,6 @@ class Message:
         message[1] |= (self.msg_code & 0x1F)
 
         """ urmatorii 2 octeti """
-        # todo
-        #  de considerat cazul in care sunt mai multi biti decat e voie (FFFF e maximul pt msg_id)
         # daca ai 1024 -> primul are 4, al doilea 0
         message.append(self.msg_id >> 8)
 
@@ -95,25 +113,32 @@ class Message:
         """ urmatorii 0-8 octeti """
         message.append(0xFFFFFFFFFFFFFFFF & self.token)
 
+        """ urmatorul 1 octet"""
+        message.append(0xFF & coap.CoAP.COAP_PAYLOAD_MARKER)
+
         """ urmatorii 0-4 octeti """
-        message.append(self.payload)
+        message.append(self.payload)  # message[6]
+
+        json_message = json.dumps(message[6])
+        json_size = len(json_message)
+        json_message = json_message.encode()
 
         # prepare message to get packed
-        packed_data = pack('i i i i i 11s',
-                           message[0], message[1], message[2], message[3], message[4], message[5].encode())
+        packed_data = pack('i i i i i i ' + str(json_size) + 's',
+                           message[0], message[1], message[2], message[3], message[4], message[5], json_message)
 
         return packed_data
 
     def err_msg_tok(self, msg_token_length):
         if 9 <= msg_token_length <= 15:
             message = "Eroare la token"
-            send_message_to_listeners(message)
+            file_system.send_message_to_listeners(message)
             print(message)
 
     def err_msg_ver(self, msg_version):
         if msg_version != 1:
             message = "Eroare la version"
-            send_message_to_listeners(message)
+            file_system.send_message_to_listeners(message)
             print(message)
 
     def get_version(self):
