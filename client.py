@@ -1,7 +1,9 @@
+import json
 import threading
 import socket
 import sys
 import select
+import message
 
 
 def receive_fct(s):
@@ -18,6 +20,7 @@ def receive_fct(s):
 
 
 def main():
+    my_message = message.Message('Client')
     global running
 
     server_port = 2001
@@ -25,7 +28,7 @@ def main():
 
     # make sure every client is connected
     client_port = 2000
-    client_ip = "127.0.0.2"
+    client_ip = "127.0.0.3"
 
     # Creare socket UDP
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -41,8 +44,11 @@ def main():
 
     while True:
         try:
-            data = input("Trimite: ")
-            s.sendto(bytes(data, encoding="ascii"), (server_ip, int(server_port)))
+            data = input("Trimite: ")  # 'cwd', 'ls'
+            my_message.set_client_payload(data)
+            packed_data = my_message.encode_message()
+
+            s.sendto(packed_data, (server_ip, int(server_port)))
         except KeyboardInterrupt:
             running = False
             print("Waiting for the thread to close...")
