@@ -61,6 +61,19 @@ class FileSystem:
 
         print(directories + files)
 
+    # (rename) - changes file/directory name to a new one
+    @classmethod
+    def rename(cls, old_name='', new_name=''):
+        if old_name == '' or new_name == '':
+            message = 'Please put both old and new name'
+            send_message_to_listeners(message)
+            print(message)
+        else:
+            message = old_name + ' changed to ' + new_name
+            send_message_to_listeners(message)
+            print(message)
+            os.rename(old_name, new_name)
+
 
 def send_message_to_listeners(message):
     gui.GUI.console(message)
