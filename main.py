@@ -2,8 +2,7 @@ import server_gui
 
 
 def main():
-    gui = server_gui.GUI()
-    gui.open_application()
+    server_gui.GUI().open_application()
 
 
 if __name__ == '__main__':
@@ -23,4 +22,5 @@ https://levelup.gitconnected.com/method-types-in-python-2c95d46281cd
 https://www.pythonprogramming.in/how-to-access-both-cls-and-self-in-a-method-in-python.html
 https://stackoverflow.com/questions/111155/how-do-i-handle-the-window-close-event-in-tkinter
 https://thispointer.com/how-to-create-a-directory-in-python/
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods
 """
