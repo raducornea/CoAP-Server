@@ -8,143 +8,156 @@ import threading
 class GUI:
     console_message = ''
     thread = threading.Thread(target=server.Logic.server_start)
+    window = None
+    button_start = None
+    button_stop = None
+    button_clear = None
+    button_exit = None
+    text_box = None
 
-    def __init__(self):
+    @classmethod
+    def __init__(cls):
         # window root
-        self.window = Tk()
+        cls.window = Tk()
 
         # button widgets
-        self.button_start = Button(self.window,
-                                   height=3,
-                                   width=10,
-                                   text="Start Server",
-                                   font="arial 15 bold",
-                                   bg="cyan",
-                                   pady=20,
-                                   command=self.start_server)
-        self.button_stop = Button(self.window,
+        cls.button_start = Button(cls.window,
                                   height=3,
                                   width=10,
-                                  text="Stop Server",
+                                  text="Start Server",
                                   font="arial 15 bold",
                                   bg="cyan",
                                   pady=20,
-                                  command=self.close_server)
-        self.button_clear = Button(self.window,
-                                   height=3,
-                                   width=10,
-                                   text="Clear Screen",
-                                   font="arial 15 bold",
-                                   bg="cyan",
-                                   pady=20,
-                                   command=self.clear_screen)
-        self.button_exit = Button(self.window,
+                                  command=cls.start_server)
+        cls.button_stop = Button(cls.window,
+                                 height=3,
+                                 width=10,
+                                 text="Stop Server",
+                                 font="arial 15 bold",
+                                 bg="cyan",
+                                 pady=20,
+                                 command=cls.close_server)
+        cls.button_clear = Button(cls.window,
                                   height=3,
                                   width=10,
-                                  text="Exit",
+                                  text="Clear Screen",
                                   font="arial 15 bold",
                                   bg="cyan",
                                   pady=20,
-                                  command=self.exit_application)
+                                  command=cls.clear_screen)
+        cls.button_exit = Button(cls.window,
+                                 height=3,
+                                 width=10,
+                                 text="Exit",
+                                 font="arial 15 bold",
+                                 bg="cyan",
+                                 pady=20,
+                                 command=cls.exit_application)
 
         # text widgets
-        self.text_box = Text(self.window,
-                             height=25,
-                             width=66,
-                             font="arial 10",
-                             bg="white")
+        cls.text_box = Text(cls.window,
+                            height=25,
+                            width=66,
+                            font="arial 10",
+                            bg="white")
 
     # attempt to start the server
-    def start_server(self):
+    @classmethod
+    def start_server(cls):
         # Start Server on a new Thread
         server.Logic.__init__()
-        self.__class__.thread = threading.Thread(target=server.Logic.server_start)
-        self.__class__.thread.start()
+        cls.thread = threading.Thread(target=server.Logic.server_start)
+        cls.thread.start()
 
         print('--Starting Server')
-        self.button_start.place_forget()
-        self.button_stop.place(x=468, y=0)
-        self.text_box.place(x=0, y=0)
+        cls.button_start.place_forget()
+        cls.button_stop.place(x=468, y=0)
+        cls.text_box.place(x=0, y=0)
 
-        self.print_message("Server is On!")
+        cls.print_message("Server is On!")
 
         # sets file system to absolute path
         fs.FileSystem.__init__()
 
-        # newFile
-        fs.FileSystem.new_file()
-        self.print_message(self.__class__.console_message)
-
-        # newDir
-        fs.FileSystem.new_directory()
-        self.print_message(self.__class__.console_message)
-
-        # cwd
-        cwd = fs.FileSystem.get_current_work_directory()
-        self.print_message(cwd)
-
-        # chdir
-        fs.FileSystem.set_path(fs.FileSystem.current_path + "\\" + 'Temporary File')
-        # cwd
-        cwd = fs.FileSystem.get_current_work_directory()
-        self.print_message(cwd)
+        # # newFile
+        # fs.FileSystem.new_file()
+        # self.print_message(self.__class__.console_message)
+        #
+        # # newDir
+        # fs.FileSystem.new_directory()
+        # self.print_message(self.__class__.console_message)
+        #
+        # # cwd
+        # cwd = fs.FileSystem.get_current_work_directory()
+        # self.print_message(cwd)
+        #
+        # # chdir
+        # fs.FileSystem.set_path(fs.FileSystem.current_path + "\\" + 'Temporary File')
+        # # cwd
+        # cwd = fs.FileSystem.get_current_work_directory()
+        # self.print_message(cwd)
 
     # attempt to close the server
-    def close_server(self):
+    @classmethod
+    def close_server(cls):
         server.Logic.server_stop()
 
         print('--Closing Server')
-        self.button_stop.place_forget()
-        self.button_start.place(x=468, y=0)
-        self.print_message("Server is Off!")
+        cls.button_stop.place_forget()
+        cls.button_start.place(x=468, y=0)
+        cls.print_message("Server is Off!")
 
     # terminate application execution
-    def exit_application(self):
+    @classmethod
+    def exit_application(cls):
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
             server.Logic.server_stop()
 
             print('--Exiting Application')
-            self.window.destroy()
+            cls.window.destroy()
 
     # clears the screen with a button
-    def clear_screen(self):
+    @classmethod
+    def clear_screen(cls):
         print('--Clearing Screen')
-        self.text_box.config(state=NORMAL)
-        self.text_box.delete(1.0, "end")
-        self.text_box.config(state=DISABLED)
+        cls.text_box.config(state=NORMAL)
+        cls.text_box.delete(1.0, "end")
+        cls.text_box.config(state=DISABLED)
 
     # print messages to the text box
     # prevents user from typing random stuff in the box
-    def print_message(self, message):
-        self.text_box.config(state=NORMAL)
-        self.text_box.insert(END, ">> " + message + "\n")  # 1.0 insereaza la inceput / END insereaza la sfarsit
-        self.text_box.config(state=DISABLED)
+    @classmethod
+    def print_message(cls, message):
+        cls.text_box.config(state=NORMAL)
+        cls.text_box.insert(END, ">> " + message + "\n")  # 1.0 insereaza la inceput / END insereaza la sfarsit
+        cls.text_box.config(state=DISABLED)
 
     @classmethod
     def console(cls, message):
         cls.console_message = message
 
     # open the application when running main
-    def open_application(self):
-        self.__class__.console_message = ''
+    @classmethod
+    def open_application(cls):
+        cls.console_message = ''
 
         # set window attributes
-        self.window.geometry("600x400")
-        self.window.resizable(0, 0)
-        self.window.title('FS Browser - Server')
+        cls.window.geometry("600x400")
+        cls.window.resizable(0, 0)
+        cls.window.title('FS Browser - Server')
 
         # position widgets
-        self.button_start.place(x=468, y=0)
-        self.button_clear.place(x=468, y=133)
-        self.button_exit.place(x=468, y=266)
-        self.text_box.place(x=0, y=0)
+        cls.button_start.place(x=468, y=0)
+        cls.button_clear.place(x=468, y=133)
+        cls.button_exit.place(x=468, y=266)
+        cls.text_box.place(x=0, y=0)
 
         # friendly message helper
-        self.print_message("Welcome to the Server Interface!\n"
-                           ">> To browse the File System, use the Client and type os commands like 'cwd'!")
+        cls.print_message("Welcome to the Server Interface!\n"
+                          ">> To browse the File System, use the Client and type os commands like 'cwd'!")
 
         # x button messagebox and function
-        self.window.protocol("WM_DELETE_WINDOW", self.exit_application)
+        cls.window.protocol("WM_DELETE_WINDOW", cls.exit_application)
 
         # loop the application
-        self.window.mainloop()
+        cls.window.mainloop()
