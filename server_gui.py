@@ -79,24 +79,6 @@ class GUI:
         # sets file system to absolute path
         fs.FileSystem.__init__()
 
-        # # newFile
-        # fs.FileSystem.new_file()
-        # self.print_message(self.__class__.console_message)
-        #
-        # # newDir
-        # fs.FileSystem.new_directory()
-        # self.print_message(self.__class__.console_message)
-        #
-        # # cwd
-        # cwd = fs.FileSystem.get_current_work_directory()
-        # self.print_message(cwd)
-        #
-        # # chdir
-        # fs.FileSystem.set_path(fs.FileSystem.current_path + "\\" + 'Temporary File')
-        # # cwd
-        # cwd = fs.FileSystem.get_current_work_directory()
-        # self.print_message(cwd)
-
     # attempt to close the server
     @classmethod
     def close_server(cls):
