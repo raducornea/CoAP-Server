@@ -6,7 +6,6 @@ import threading
 
 
 class GUI:
-    console_message = ''
     thread = threading.Thread(target=server.Logic.server_start)
     window = None
     button_start = None
@@ -114,6 +113,8 @@ class GUI:
         cls.text_box.insert(END, ">> " + message + "\n")  # 1.0 insereaza la inceput / END insereaza la sfarsit
         cls.text_box.config(state=DISABLED)
 
+    # todo
+    #  remove and use print_message everywhere
     @classmethod
     def console(cls, message):
         cls.console_message = message
