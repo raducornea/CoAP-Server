@@ -19,9 +19,3 @@ class CoAP:
     CODE_GET = 1
     CODE_POST = 2
     CODE_RENAME = 8
-
-    def buf2int(buf):
-        returnVal = 0
-        for i in range(len(buf)):
-            returnVal += buf[i] << (8 * (len(buf) - 1 - i))
-        return returnVal
