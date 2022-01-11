@@ -2,8 +2,9 @@ import struct
 from struct import *
 import json
 
-import coap
 import file_system
+import server_gui
+import server_logic
 
 
 def unpack_helper(fmt, data):
@@ -16,13 +17,14 @@ class Message:
         self.architecture_type = architecture_type  # server / client
 
         # 1 byte: VER + Type + Token Length
-        self.msg_version = 1  # 2 bits
-        self.msg_type = 1  # 2 bits
-        self.msg_token_length = 1  # 4 bits
+        self.msg_version = 1  # 2 bits  # must always be 1
+        self.msg_type = 1  # 2 bits  # 0 conf 1 non-conf 2 ack 3 reset
+        self.msg_token_length = 0  # 4 bits  # must be outside [9, 15]
 
-        # 1 byte: Request/Response Code (Class)(Code)
-        self.msg_class = 1  # 0 1 2 - 3 bits
-        self.msg_code = 6  # 3 4 5 6 7 - 5 bits
+        # GET / PUT / POST / RENAME - given by these codes
+        # 1 byte: Request/Response Code (Class)(Code)  # 4.04
+        self.msg_class = 2  # 0 1 2 - 3 bits  #  0-7
+        self.msg_code = 5  # 3 4 5 6 7 - 5 bits  # 0-31
 
         # 2 bytes: Message ID
         self.msg_id = 0xFffF  # 16 bits
@@ -30,39 +32,121 @@ class Message:
         # 0 - 8 bytes: Token
         self.token = 0
 
-        # 1 byte of 1111 1111
+        # 1 byte of (1111 1111) for payload_marker
+        self.payload_marker = 0xff
+
         # 0 - 3 bytes: Payload (if available) -> The message
-        self.payload = {'command': 'aaaaa gfgggggg'}
+        self.payload = {'command': 'cwd'}
+
+    def set_msg_version(self, msg_version):
+        self.msg_version = msg_version
+
+    def set_msg_type(self, msg_type):
+        self.msg_type = msg_type
+
+    def set_msg_token_length(self, msg_token_length):
+        self.msg_token_length = msg_token_length
+
+    def set_msg_class(self, msg_class):
+        self.msg_class = msg_class
+
+    def set_msg_code(self, msg_code):
+        self.msg_code = msg_code
+
+    def set_msg_id(self, msg_id):
+        self.msg_id = msg_id
+
+    def set_token(self, token):
+        self.token = token
+
+    def set_payload_marker(self, marker):
+        self.payload_marker = marker
+
+    def set_payload(self, payload):
+        self.payload = payload
 
     # function for server only
     def set_server_payload(self, command, response):
         if self.architecture_type == 'Server':
-            self.payload = {'command': command, 'data': response}
+            self.payload = {'command': command, 'response': response}
 
     # function for client only
-    def set_client_payload(self, command):
+    def set_client_payload(self, command, parameters):
         if self.architecture_type == 'Client':
-            self.payload = {'command': command}
+            self.payload = {'command': command, 'parameters': parameters}
 
-    def verify_format(self, message, command):
-        #todo
-        # add verifications for CoAP
+    def err_msg_tok(self, msg_token_length):
+        # TREBUIE procesate ca eroare de formatare mesaj
+        if 9 <= msg_token_length <= 15:
+            message = "Eroare la token"
+            file_system.send_message_to_listeners(message)
+            print(message)
+            return False
+        return True
 
-        msg_version = (0xC0 & message[0]) >> 6
-        msg_type = (0x30 & message[0]) >> 4
-        msg_token_length = (0x0F & message[0]) >> 0
+    # verify format prepares another message to send depending on its parameters
+    def verify_format(self):
 
-        msg_class = (message[1] >> 5) & 0b111
-        msg_code = (message[1] >> 0) & 0x1F
+        # prepare response for Client
+        if self.architecture_type == 'Server':
+            response = Message('Server')
 
-        msg_id = (message[2] << 8) | message[3]
+            response.set_msg_version(1)
+            response.set_msg_token_length(1)
+            response.set_msg_id(0xffff)
+            response.set_token(0)
+            response.set_payload_marker(0xff)
 
-        self.err_msg_ver(msg_version)
-        self.err_msg_tok(msg_token_length)
+            if self.msg_version != 1:
+                # Unknwon Version MUST be silently ignored
+                message = "Client Header Version Error"  # 500 Internal Server Error
+                server_gui.GUI.print_message(message)
 
-        token = 0
-        if msg_token_length:
-            token = message[4]
+                response.set_msg_class(5)
+                response.set_msg_code(0)
+                response.set_msg_type(0)
+                response.set_payload_marker(0)
+                response.set_payload("")
+                return response
+
+            try:
+                """
+                header_format - (81, 38, 255, 255, 0, 255)
+                encoded_json - b'{"command": "hello", "parameters": "hi"}'
+                command - hello
+                parameters - hi
+                """
+                encoded_json = self.get_payload()
+                command = json.loads(encoded_json)['command']
+                parameters = json.loads(encoded_json)['parameters']
+            except KeyError:
+                print('Invalid Command/Parameters')  # bad gateway 5.02
+                response.set_msg_class(5)
+                response.set_msg_code(2)
+                response.set_msg_type(3)  # reset - received it, ccould not process
+                return response
+
+            # remove client address if command is 'disconnected' - should not care about the message format
+            if command == 'disconnect':
+                # forcefully disconnect client and announce other clients of it's disconnection
+                server_logic.Logic.disconnect_client()
+                return
+
+            # if both command and parameters are recognized, continue unit tests
+            print(command)
+            print(parameters)
+
+            return response
+        else:
+            new_message = Message('Client')
+
+        # check type
+        # 1. Cererea (Request)
+        # Confirmable (0) - mesajul asteapta mesajul de confirmare
+        # Non-Confirmabil (1) - mesaj care nu asteapta mesaj de confirmare
+        # 2. Raspuns (Response)
+        # Acknowledgement (2) - mesaj de tip raspuns care confirma un mesaj confirmabil (0)
+        # Reset (3) - mesaj care indica primirea unui mesaj, dar nu l-a putut procesa
 
         """
         The absence of the  Payload Marker denotes a zero-length payload.  
@@ -71,20 +155,43 @@ class Message:
         message format error.
         """
 
-        # print(msg_version)
-        # print(msg_type)
-        # print(msg_token_length)
-        # print(msg_class)
-        # print(msg_code)
-        # print(msg_id)
-        # print(token)
-        # print(payload)
+        print(self.msg_version)
+        print(self.msg_type)
+        print(self.msg_token_length)
+        print(self.msg_class)
+        print(self.msg_code)
+        print(self.msg_id)
+        print(self.token)
+        print(self.payload_marker)
+        print(self.payload)  # cwd
 
-    def decode_message(self, message):
+    # make message understandable in decimal
+    def decode_message(self, message, encoded_json):
+        self.msg_version = (0xC0 & message[0]) >> 6
+        self.msg_type = (0x30 & message[0]) >> 4
+        self.msg_token_length = (0x0F & message[0]) >> 0
+
+        self.msg_class = (message[1] >> 5) & 0b111
+        self.msg_code = (message[1] >> 0) & 0x1F
+
+        self.msg_id = (message[2] << 8) | message[3]
+
+        self.payload_marker = (message[3])
+        self.payload = encoded_json
+
+        self.token = 0
+        if self.msg_token_length:
+            self.token = message[4]
+
+    # get the header_format and encoded_json from the message from received
+    # by client/server
+    def get_header_message(self, message):
         header_format, encoded_json = unpack_helper('i i i i i i ', message)
         encoded_json = encoded_json.replace(b'\x00', b'')
         return header_format, encoded_json
 
+    # format the message so that it can respect CoAP formating and put the
+    # commands/outputs/parameters in JSON
     def encode_message(self):
         """ primul octet """
         # ((11 & VER) << 6) = 8 biti
@@ -114,11 +221,10 @@ class Message:
         message.append(0xFFFFFFFFFFFFFFFF & self.token)
 
         """ urmatorul 1 octet"""
-        message.append(0xFF & coap.CoAP.COAP_PAYLOAD_MARKER)
+        message.append(0xFF & self.payload_marker)
 
-        """ urmatorii 0-4 octeti """
+        """ urmatorii 0-3 octeti """
         message.append(self.payload)  # message[6]
-
         json_message = json.dumps(message[6])
         json_size = len(json_message)
         json_message = json_message.encode()
@@ -128,18 +234,6 @@ class Message:
                            message[0], message[1], message[2], message[3], message[4], message[5], json_message)
 
         return packed_data
-
-    def err_msg_tok(self, msg_token_length):
-        if 9 <= msg_token_length <= 15:
-            message = "Eroare la token"
-            file_system.send_message_to_listeners(message)
-            print(message)
-
-    def err_msg_ver(self, msg_version):
-        if msg_version != 1:
-            message = "Eroare la version"
-            file_system.send_message_to_listeners(message)
-            print(message)
 
     def get_version(self):
         return int(str(self.msg_version), 2)
