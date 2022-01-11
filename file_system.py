@@ -6,7 +6,7 @@ import server_logic as server
 class FileSystem:
     absolute_path = os.getcwd()  # project path
     current_path = os.getcwd()  # working path for file system operations
-    allowed_commands = ['chdir', 'cwd', 'newDir', 'newFile', 'ls']  # commands to check
+    allowed_commands = ['chdir', 'cwd', 'newDir', 'newFile', 'ls', 'rename', 'move']  # commands to check
 
     # initiates / resests attributes
     @classmethod
@@ -74,7 +74,25 @@ class FileSystem:
             print(message)
             os.rename(old_name, new_name)
 
+    # # newFile
+    # fs.FileSystem.new_file()
+    # self.print_message(self.__class__.console_message)
+    #
+    # # newDir
+    # fs.FileSystem.new_directory()
+    # self.print_message(self.__class__.console_message)
+    #
+    # # cwd
+    # cwd = fs.FileSystem.get_current_work_directory()
+    # self.print_message(cwd)
+    #
+    # # chdir
+    # fs.FileSystem.set_path(fs.FileSystem.current_path + "\\" + 'Temporary File')
+    # # cwd
+    # cwd = fs.FileSystem.get_current_work_directory()
+    # self.print_message(cwd)
+
 
 def send_message_to_listeners(message):
-    gui.GUI.console(message)
+    gui.GUI.print_message(message)
     server.Logic.set_data(message)
