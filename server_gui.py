@@ -113,17 +113,9 @@ class GUI:
         cls.text_box.insert(END, ">> " + message + "\n")  # 1.0 insereaza la inceput / END insereaza la sfarsit
         cls.text_box.config(state=DISABLED)
 
-    # todo
-    #  remove and use print_message everywhere
-    @classmethod
-    def console(cls, message):
-        cls.console_message = message
-
     # open the application when running main
     @classmethod
     def open_application(cls):
-        cls.console_message = ''
-
         # set window attributes
         cls.window.geometry("600x400")
         cls.window.resizable(0, 0)
