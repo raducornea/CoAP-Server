@@ -31,7 +31,7 @@ class Logic:
 
         cls.server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         cls.server_socket.bind((cls.server_ip, cls.server_port))
-        cls.server_received_message = message.Message('Server')
+        cls.server_received_message = message.Message('Client')
         cls.server_response_message = message.Message('Server')
         cls.server_client = None
 
