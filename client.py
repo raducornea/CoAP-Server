@@ -99,17 +99,12 @@ def main():
             | 2.02 | Deleted                   
             | 2.03 | Valid                     
             | 2.04 | Changed                   
-            | 2.05 | Content                   
-            | 4.00 | Bad Request               
-            | 4.01 | Unauthorized              
-            | 4.02 | Bad Option                
-            | 4.03 | Forbidden                 
-            | 4.04 | Not Found                 
-            | 4.05 | Method Not Allowed        
-            | 4.06 | Not Acceptable            
-            | 4.12 | Precondition Failed       
-            | 4.13 | Request Entity Too Large  
-            | 4.15 | Unsupported Content-Format
+            | 2.05 | Content      
+                         
+            | 4.00 | Bad Request
+            | 4.05 | Method Not Allowed - for commands not in the list
+            | 4.06 | Not Acceptable - probably for payload marker not respected
+            
             | 5.00 | Internal Server Error      
             | 5.01 | Not Implemented            
             | 5.02 | Bad Gateway                

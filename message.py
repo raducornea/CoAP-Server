@@ -75,30 +75,64 @@ class Message:
         if self.architecture_type == 'Client':
             self.payload = {'command': command, 'parameters': parameters}
 
-    def err_msg_tok(self, msg_token_length):
-        # TREBUIE procesate ca eroare de formatare mesaj
-        if 9 <= msg_token_length <= 15:
-            message = "Eroare la token"
-            file_system.send_message_to_listeners(message)
-            print(message)
-            return False
-        return True
-
     # verify format prepares another message to send depending on its parameters
     def verify_format(self):
         # prepare response for Client (the response is of type server)
-        if self.architecture_type == 'Client':
+        if self.architecture_type == 'Client':  # self is of type Client
             response = Message('Server')
+            targeted_client = server_logic.Logic.server_client
 
+            # Unknown Version MUST be silently ignored
+            if self.msg_version != 1:
+                message = "#400 Bad Request - Client CoAP Version is not 1"
+                server_gui.GUI.print_message(message)
+
+                # reset
+                response.set_msg_type(3)
+                response.set_msg_class(4)
+                response.set_msg_code(0)
+                response.set_msg_type(0)
+                response.set_payload_marker(0)
+                response.set_server_payload("", "")
+
+                # send the response to clients
+                server_logic.Logic.message_clients(response.encode_message())
+            # then, silently ignore -> keep on doing stuff
+
+            # Must be processed as formatting error message
+            if 9 <= self.msg_token_length <= 15:
+                message = f"#400 Bad Request - Client {targeted_client} Formatting Error - Token Length"
+                server_gui.GUI.print_message(message)
+
+                # reset
+                response.set_msg_type(3)
+                response.set_msg_class(4)
+                response.set_msg_code(0)
+                response.set_msg_type(0)
+                response.set_payload_marker(0)
+                response.set_server_payload("", "")
+
+                # simply prevents from continuing the operations
+                return response
+            # then, try to do the normal stuff if these are respected
+
+            # Defaults
             response.set_msg_version(1)
-            # non-conf
+            # non-conf by default
             response.set_msg_type(1)
             response.set_msg_token_length(1)
             response.set_msg_id(0xffff)
             response.set_token(0)
+            # suppose the message contains something
             response.set_payload_marker(0xff)
 
-            # if message received wants acknowledgement (is confirmable)
+            # payload == "" and payload_marker == 0 when message_type is in [2, 3]
+            # but a *success* can either return the ack (2) or res (0)/(1) (verify payload and payload_marker!!!)
+            # client gives conf (0) -> server gives ack (2) -> server gives resp/res (0)/(3) -> client gives ack (2)
+            # client gives non-conf (1) -> server will skip these branches and give resp/res (1)/(3)
+            # client gives ack (2) -> server prints on interface that it received with success
+            # client gives res (3) -> server prints on interface that it received a reset
+            """ client gives conf (0) """
             if self.msg_type == 0:
                 # ack
                 response.set_msg_type(2)
@@ -108,40 +142,50 @@ class Message:
                 response.set_msg_type(0)
 
                 # use next line until client can process other information than jsons of type client
-                response.set_server_payload('ANY COMMAND', 'ACK from SERVER')
+                # response.set_payload("")  # use it only when it's success
+                response.set_server_payload("", "")  # set nothing for parameters
+                response.set_payload_marker(0)
+
+                """ server gives ack (2) """
                 server_logic.Logic.message_clients(response.encode_message())
-                # response.set_payload("Success. Message Received")  # use it only when it's success
 
                 # conf
-                response.set_server_payload('ANY COMMAND', 'response from server')
                 response.set_msg_type(0)
-                print("ajunge aici")
-                return response
+                # return of response will be later on
 
-            if self.msg_version != 1:
-                # Unknwon Version MUST be silently ignored
-                message = "Client Header Version Error"  # 500 Internal Server Error
-                server_gui.GUI.print_message(message)
-
-                response.set_msg_class(4)
-                response.set_msg_code(0)
-                response.set_msg_type(0)
-                response.set_payload_marker(0)
-                response.set_payload("")
-                return response
-
-            # try to decode the message received by the server from the client
+            # try to decode the message from the client
             try:
                 encoded_json = self.get_payload()  # b'{"command": "hello", "parameters": "hi"}'
                 command = json.loads(encoded_json)['command']
                 parameters = json.loads(encoded_json)['parameters']
-                print(encoded_json)
-
+                # print(encoded_json)  # b'A\x00\x00\x00{"command": "ANY COMMAND", "response": "response from server"}'
             except KeyError:
-                print('Invalid Command/Parameters')  # bad gateway 5.02
-                response.set_msg_class(5)
-                response.set_msg_code(2)
-                response.set_msg_type(3)  # reset - received it, ccould not process
+                message = f"#406 Not Acceptable From {targeted_client}. Couldn't read proper 'command' and 'parameters'"
+                server_gui.GUI.print_message(message)
+
+                response.set_msg_type(3)
+                response.set_msg_class(4)
+                response.set_msg_code(0)
+                response.set_msg_type(6)
+                response.set_server_payload("", "")
+                response.set_payload_marker(0)
+                return response
+            # now that we know what is in the json, either something, either ("", "") pair
+            # we can proceed to next operations, which is checking the payload
+
+            # payload_marker == 0 -> len(payload) == 0
+            # payload_marker > 0 && len(payload) == 0 => Message Format Error
+            if self.payload_marker > 0 and (command != "" or parameters != ""):
+                message = f"#400 Bad Request - Client {targeted_client} Formatting Error - Payload"
+                server_gui.GUI.print_message(message)
+
+                # reset
+                response.set_msg_type(3)
+                response.set_msg_class(4)
+                response.set_msg_code(0)
+                response.set_msg_type(0)
+                response.set_payload_marker(0)
+                response.set_server_payload("", "")
                 return response
 
             response.set_server_payload(command, 'A MERS???')
@@ -167,13 +211,6 @@ class Message:
         # 2. Raspuns (Response)
         # Acknowledgement (2) - mesaj de tip raspuns care confirma un mesaj confirmabil (0)
         # Reset (3) - mesaj care indica primirea unui mesaj, dar nu l-a putut procesa
-
-        """
-        The absence of the  Payload Marker denotes a zero-length payload.  
-        The presence of a
-        marker followed by a zero-length payload MUST be processed as a
-        message format error.
-        """
 
         print(self.msg_version)
         print(self.msg_type)
