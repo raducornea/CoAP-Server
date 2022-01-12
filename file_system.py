@@ -6,7 +6,7 @@ import server_logic as server
 class FileSystem:
     absolute_path = os.getcwd()  # project path
     current_path = os.getcwd()  # working path for file system operations
-    allowed_commands = ['chdir', 'cwd', 'newDir', 'newFile', 'ls', 'rename', 'move']  # commands to check
+    allowed_commands = ['chdir', 'cwd', 'newDir', 'newFile', 'ls', 'rename', 'move', 'disconnect']  # commands to check
 
     # initiates / resests attributes
     @classmethod
@@ -59,7 +59,7 @@ class FileSystem:
         files = list(filter(os.path.isfile, os.listdir(cls.current_path)))
         directories = list(filter(os.path.isdir, os.listdir(cls.current_path)))
 
-        print(directories + files)
+        return directories, files
 
     # (rename) - changes file/directory name to a new one
     @classmethod

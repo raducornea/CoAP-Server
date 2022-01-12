@@ -66,8 +66,6 @@ def main():
             message_type = int(input("Message Type # 0 conf 1 non-conf 2 ack 3 reset = "))  # int
 
             """
-            0.00 - client sends nothing -> server sends nothing
-            
             GET - cwd, ls -> 0.01 -> GET-> response should be 2.05 (Content)
             The GET method requests a representation of the specified resource. Requests using GET should only 
             retrieve data.
@@ -96,21 +94,15 @@ def main():
             This Response Code is like HTTP 501 "Not Implemented".
             
             | 2.01 | Created                   
-            | 2.02 | Deleted                   
-            | 2.03 | Valid                     
             | 2.04 | Changed                   
             | 2.05 | Content      
-                         
+
             | 4.00 | Bad Request
             | 4.05 | Method Not Allowed - for commands not in the list
             | 4.06 | Not Acceptable - probably for payload marker not respected
             
             | 5.00 | Internal Server Error      
             | 5.01 | Not Implemented            
-            | 5.02 | Bad Gateway                
-            | 5.03 | Service Unavailable        
-            | 5.04 | Gateway Timeout            
-            | 5.05 | Proxying Not Supported     
             
             # client asks for Request (Type 0/1) - does not care for code messages at Request
             # server gives Response (Type 2/3) - cares for code messages
@@ -123,14 +115,17 @@ def main():
             my_message.set_payload_marker(0xff)
 
             if command in ['cwd', 'ls']:
-                my_message.set_msg_class(2)
-                my_message.set_msg_code(5)
-            elif command in ['newDir', 'newFile']:
-                my_message.set_msg_class(2)
+                my_message.set_msg_class(0)
                 my_message.set_msg_code(1)
-            elif command == ['move', 'rename']:
-                my_message.set_msg_class(2)
-                my_message.set_msg_code(4)
+            elif command in ['newDir', 'newFile']:
+                my_message.set_msg_class(0)
+                my_message.set_msg_code(2)
+            elif command == ['move']:
+                my_message.set_msg_class(0)
+                my_message.set_msg_code(3)
+            elif command == ['rename']:
+                my_message.set_msg_class(0)
+                my_message.set_msg_code(8)
 
             if message_type in [0, 1]:
                 my_message.set_msg_type(message_type)

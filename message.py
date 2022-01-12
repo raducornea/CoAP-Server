@@ -91,7 +91,6 @@ class Message:
                 response.set_msg_type(3)
                 response.set_msg_class(4)
                 response.set_msg_code(0)
-                response.set_msg_type(0)
                 response.set_payload_marker(0)
                 response.set_server_payload("", "")
 
@@ -108,7 +107,6 @@ class Message:
                 response.set_msg_type(3)
                 response.set_msg_class(4)
                 response.set_msg_code(0)
-                response.set_msg_type(0)
                 response.set_payload_marker(0)
                 response.set_server_payload("", "")
 
@@ -134,12 +132,14 @@ class Message:
             # client gives res (3) -> server prints on interface that it received a reset
             """ client gives conf (0) """
             if self.msg_type == 0:
+                message = f"#ACK Got a CONF Message From {targeted_client}. Sending acknowledge back..."
+                server_gui.GUI.print_message(message)
+
                 # ack
                 response.set_msg_type(2)
                 # 2.00 - Success
                 response.set_msg_class(2)
                 response.set_msg_code(0)
-                response.set_msg_type(0)
 
                 # use next line until client can process other information than jsons of type client
                 # response.set_payload("")  # use it only when it's success
@@ -148,8 +148,9 @@ class Message:
 
                 """ server gives ack (2) """
                 server_logic.Logic.message_clients(response.encode_message())
+                # server_logic.Logic.data = response.encode_message()
 
-                # conf
+                # conf - remains set
                 response.set_msg_type(0)
                 # return of response will be later on
 
@@ -163,10 +164,10 @@ class Message:
                 message = f"#406 Not Acceptable From {targeted_client}. Couldn't read proper 'command' and 'parameters'"
                 server_gui.GUI.print_message(message)
 
+                # reset
                 response.set_msg_type(3)
                 response.set_msg_class(4)
-                response.set_msg_code(0)
-                response.set_msg_type(6)
+                response.set_msg_code(6)
                 response.set_server_payload("", "")
                 response.set_payload_marker(0)
                 return response
@@ -175,7 +176,7 @@ class Message:
 
             # payload_marker == 0 -> len(payload) == 0
             # payload_marker > 0 && len(payload) == 0 => Message Format Error
-            if self.payload_marker > 0 and (command != "" or parameters != ""):
+            if self.payload_marker > 0 and command == "" and parameters == "":
                 message = f"#400 Bad Request - Client {targeted_client} Formatting Error - Payload"
                 server_gui.GUI.print_message(message)
 
@@ -183,10 +184,105 @@ class Message:
                 response.set_msg_type(3)
                 response.set_msg_class(4)
                 response.set_msg_code(0)
-                response.set_msg_type(0)
                 response.set_payload_marker(0)
                 response.set_server_payload("", "")
                 return response
+            # now the server verified if all the fields are completed correctly
+
+            # if the client gives the *NOTHING* message, give it back without checking others
+            if self.msg_code == 0 and self.msg_class == 0 and command == "" and parameters == "" and self.payload_marker == 0:
+                message = f"#200 Success. Client {targeted_client} gave #000 Empty Message ."
+                server_gui.GUI.print_message(message)
+
+                # success
+                response.set_msg_class(2)
+                response.set_msg_code(0)
+                response.set_payload_marker(0)
+                response.set_server_payload("", "")
+                return response
+
+            # verify if the command is in the list of allowed_commands
+            if command not in file_system.FileSystem.allowed_commands:
+                message = f"#405 Method {command}, {parameters} Not Allowed <- From Client {targeted_client}"
+                server_gui.GUI.print_message(message)
+
+                # reset
+                response.set_msg_type(3)
+                response.set_msg_class(4)
+                response.set_msg_code(5)
+                response.set_payload_marker(0)
+                response.set_server_payload("", "")
+                return response
+            # if the client passed these tests, it means that the header is acceptable and the command is allowed
+
+            # make sure that the command given matches the (parameters + code/class)
+            # GET
+            if command in ['cwd', 'ls']:
+                # cwd/ls must be executed alone
+                if parameters != "":
+                    message = f"#405 Method Not Allowed. {command} must be alone! <- From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(5)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                if self.msg_class != 0 or self.msg_code != 1:
+                    message = f"#406 Method Not Acceptable due to Code/Class not matching function <- From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(6)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+                # commands passed the test
+
+                if command == 'cwd':
+                    cwd = file_system.FileSystem.get_current_work_directory()
+
+                    if cwd != "":
+                        message = f"#205 Content Success - {targeted_client} used 'cwd' and the response is \n {cwd}"
+                        server_gui.GUI.print_message(message)
+
+                        # success
+                        response.set_msg_class(2)
+                        response.set_msg_code(5)
+                        response.set_payload_marker(0xff)
+                        response.set_server_payload("cwd", cwd)
+                        return response
+
+                    else:
+                        message = f"#501 Not Implemented - {targeted_client} tried 'cwd' but couldn't execute it"
+                        server_gui.GUI.print_message(message)
+
+                        # reset
+                        response.set_msg_type(3)
+                        response.set_msg_class(5)
+                        response.set_msg_code(1)
+                        response.set_payload_marker(0)
+                        response.set_server_payload("", "")
+                        return response
+
+                elif command == 'ls':
+                    directories, files = file_system.FileSystem.list_files_and_directories()
+                    result = f"Directories: {directories}. Files: {files}."
+
+                    message = f"#205 Content Success - {targeted_client} used 'ls'. {result}"
+                    server_gui.GUI.print_message(message)
+
+                    # success
+                    response.set_msg_class(2)
+                    response.set_msg_code(5)
+                    response.set_payload_marker(0xff)
+                    response.set_server_payload("cwd", result)
+                    return response
 
             response.set_server_payload(command, 'A MERS???')
 
