@@ -20,6 +20,20 @@ def receive_fct(s):
             print("Received", str(data), "from", address)
             # process_data(data, address)
             print("Counter = ", counter)
+            client_received_message = message.Message('Server')
+
+            # data is of type packed_data
+            header_format, encoded_json = client_received_message.get_header_message(data)
+
+            # decode message so that it can be understood in decimal
+            client_received_message.decode_message(header_format, encoded_json)
+
+            # verify header format from data and do CoAP Codes
+            encoded_json = client_received_message.get_payload()
+            command = json.loads(encoded_json)['command']
+            response = json.loads(encoded_json)['response']
+            print('COMMAND = ', command)
+            print('RESPONSE = ', response)
 
 
 def main():
@@ -47,25 +61,31 @@ def main():
 
     while True:
         try:
-            command = input("Command: ")  # 'cwd', 'ls'
+            command = input("Command: ")  # 'cwd', 'ls', 'rename'
             parameters = input("Parameters: ")  # old_name new_name
             message_type = int(input("Message Type # 0 conf 1 non-conf 2 ack 3 reset = "))  # int
 
             """
-            GET - cwd, ls -> response should be 2.05 (Content)
+            0.00 - client sends nothing -> server sends nothing
+            
+            GET - cwd, ls -> 0.01 -> GET-> response should be 2.05 (Content)
             The GET method requests a representation of the specified resource. Requests using GET should only 
             retrieve data.
 
-            POST - newDir, newFile -> response 2.01 (Created)
+            POST -> 0.02 - newDir, newFile -> response 2.01 (Created)
             The POST method submits an entity to the specified resource, often causing a change in state or side effects 
             on the server.
 
-            PUT - move? file and directories? -> 2.04 (Changed)
+            PUT -> 0.03 - (move) file and directories? -> 2.04 (Changed)
             The PUT method replaces all current representations of the target resource with the request payload.
 
-            RENAME - rename -> 2.04 (Changed) Response 
+            RENAME -> 0.08 - rename -> 2.04 (Changed) Response 
             Renames file/directory
-
+            
+            2.00
+            This class of Response Code indicates that the clients request was
+            successfully received, understood, and accepted.
+            
             4.04 Not Found ??? -> Client
             This Response Code is like HTTP 404 "Not Found".
             
@@ -74,8 +94,34 @@ def main():
 
             5.01 Not Implemented -> Server
             This Response Code is like HTTP 501 "Not Implemented".
+            
+            | 2.01 | Created                   
+            | 2.02 | Deleted                   
+            | 2.03 | Valid                     
+            | 2.04 | Changed                   
+            | 2.05 | Content                   
+            | 4.00 | Bad Request               
+            | 4.01 | Unauthorized              
+            | 4.02 | Bad Option                
+            | 4.03 | Forbidden                 
+            | 4.04 | Not Found                 
+            | 4.05 | Method Not Allowed        
+            | 4.06 | Not Acceptable            
+            | 4.12 | Precondition Failed       
+            | 4.13 | Request Entity Too Large  
+            | 4.15 | Unsupported Content-Format
+            | 5.00 | Internal Server Error      
+            | 5.01 | Not Implemented            
+            | 5.02 | Bad Gateway                
+            | 5.03 | Service Unavailable        
+            | 5.04 | Gateway Timeout            
+            | 5.05 | Proxying Not Supported     
+            
+            # client asks for Request (Type 0/1) - does not care for code messages at Request
+            # server gives Response (Type 2/3) - cares for code messages
+            # client receives Response and interprets it
             """
-            my_message.set_msg_version(0)
+            my_message.set_msg_version(1)
             my_message.set_msg_token_length(1)
             my_message.set_msg_id(0xffff)
             my_message.set_token(0)
@@ -91,7 +137,7 @@ def main():
                 my_message.set_msg_class(2)
                 my_message.set_msg_code(4)
 
-            if message_type in [0, 1, 2, 3]:
+            if message_type in [0, 1]:
                 my_message.set_msg_type(message_type)
             else:
                 my_message.set_msg_type(1)  # non confirmable
