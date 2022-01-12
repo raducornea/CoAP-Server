@@ -86,45 +86,65 @@ class Message:
 
     # verify format prepares another message to send depending on its parameters
     def verify_format(self):
-
-        # prepare response for Client
-        if self.architecture_type == 'Server':
+        # prepare response for Client (the response is of type server)
+        if self.architecture_type == 'Client':
             response = Message('Server')
 
             response.set_msg_version(1)
+            # non-conf
+            response.set_msg_type(1)
             response.set_msg_token_length(1)
             response.set_msg_id(0xffff)
             response.set_token(0)
             response.set_payload_marker(0xff)
+
+            # if message received wants acknowledgement (is confirmable)
+            if self.msg_type == 0:
+                # ack
+                response.set_msg_type(2)
+                # 2.00 - Success
+                response.set_msg_class(2)
+                response.set_msg_code(0)
+                response.set_msg_type(0)
+
+                # use next line until client can process other information than jsons of type client
+                response.set_server_payload('ANY COMMAND', 'ACK from SERVER')
+                server_logic.Logic.message_clients(response.encode_message())
+                # response.set_payload("Success. Message Received")  # use it only when it's success
+
+                # conf
+                response.set_server_payload('ANY COMMAND', 'response from server')
+                response.set_msg_type(0)
+                print("ajunge aici")
+                return response
 
             if self.msg_version != 1:
                 # Unknwon Version MUST be silently ignored
                 message = "Client Header Version Error"  # 500 Internal Server Error
                 server_gui.GUI.print_message(message)
 
-                response.set_msg_class(5)
+                response.set_msg_class(4)
                 response.set_msg_code(0)
                 response.set_msg_type(0)
                 response.set_payload_marker(0)
                 response.set_payload("")
                 return response
 
+            # try to decode the message received by the server from the client
             try:
-                """
-                header_format - (81, 38, 255, 255, 0, 255)
-                encoded_json - b'{"command": "hello", "parameters": "hi"}'
-                command - hello
-                parameters - hi
-                """
-                encoded_json = self.get_payload()
+                encoded_json = self.get_payload()  # b'{"command": "hello", "parameters": "hi"}'
                 command = json.loads(encoded_json)['command']
                 parameters = json.loads(encoded_json)['parameters']
+                print(encoded_json)
+
             except KeyError:
                 print('Invalid Command/Parameters')  # bad gateway 5.02
                 response.set_msg_class(5)
                 response.set_msg_code(2)
                 response.set_msg_type(3)  # reset - received it, ccould not process
                 return response
+
+            response.set_server_payload(command, 'A MERS???')
 
             # remove client address if command is 'disconnected' - should not care about the message format
             if command == 'disconnect':
