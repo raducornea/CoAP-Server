@@ -130,6 +130,11 @@ class Message:
             # suppose the message contains something
             response.set_payload_marker(0xff)
 
+            if self.msg_type == 2:
+                message = f"#ACK From {targeted_client}."
+                server_gui.GUI.print_message(message)
+                return None
+
             # payload == "" and payload_marker == 0 when message_type is in [2, 3]
             # but a *success* can either return the ack (2) or res (0)/(1) (verify payload and payload_marker!!!)
             # client gives conf (0) -> server gives ack (2) -> server gives resp/res (0)/(3) -> client gives ack (2)
@@ -138,7 +143,7 @@ class Message:
             # client gives res (3) -> server prints on interface that it received a reset
             """ client gives conf (0) """
             if self.msg_type == 0:
-                message = f"#ACK Got a CONF Message From {targeted_client}. Sending acknowledge back..."
+                message = f"#Got a CONF Message From {targeted_client}. Sending acknowledge back..."
                 server_gui.GUI.print_message(message)
 
                 # ack
@@ -299,6 +304,18 @@ class Message:
             # The POST method submits an entity to the specified resource,
             # often causing a change in state or side effects on the server.
             elif command in ['newDir', 'newFile', 'chdir']:
+                if self.msg_class != 0 or self.msg_code != 2:
+                    message = f"#406 Method Not Acceptable due to Code/Class not matching function <- From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(6)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
                 parameters = parameters.split(" ")
                 if len(parameters) != 1:
                     message = f"#405 Method Not Allowed. {command} needs one parameter! <- " \
@@ -337,18 +354,18 @@ class Message:
                         # reset
                         response.set_msg_type(3)
                         response.set_msg_class(4)
-                        response.set_msg_code(5)
+                        response.set_msg_code(3)
                         response.set_payload_marker(0)
                         response.set_server_payload("", "")
                         return response
 
                     elif value == 1:
-                        message = f"#202 Created Directory. Method {command} {parameters}. From Client {targeted_client}"
+                        message = f"#201 Created Directory. Method {command} {parameters}. From Client {targeted_client}"
                         server_gui.GUI.print_message(message)
 
                         # success
                         response.set_msg_class(2)
-                        response.set_msg_code(5)
+                        response.set_msg_code(1)
                         response.set_payload_marker(0xff)
                         response.set_server_payload("newDir", message)
                         return response
@@ -381,12 +398,12 @@ class Message:
                         return response
 
                     elif value == 1:
-                        message = f"#202 Created File. Method {command} { parameters}. From Client {targeted_client}"
+                        message = f"#201 Created File. Method {command} { parameters}. From Client {targeted_client}"
                         server_gui.GUI.print_message(message)
 
                         # success
                         response.set_msg_class(2)
-                        response.set_msg_code(5)
+                        response.set_msg_code(1)
                         response.set_payload_marker(0xff)
                         response.set_server_payload("newFile", message)
                         return response
@@ -406,12 +423,12 @@ class Message:
                 elif command == 'chdir':
                     value = file_system.FileSystem.set_path(parameters)
                     if value == 0:
-                        message = f"#202 Changed Directory to {parameters}. From Client {targeted_client}"
+                        message = f"#201 Changed Directory to {parameters}. From Client {targeted_client}"
                         server_gui.GUI.print_message(message)
 
                         # success
                         response.set_msg_class(2)
-                        response.set_msg_code(5)
+                        response.set_msg_code(1)
                         response.set_payload_marker(0xff)
                         response.set_server_payload(f"{command}", message)
                         return response
@@ -431,17 +448,240 @@ class Message:
             # PUT move (0.03) -> server returns 2.04 (Changed) or error
             # The PUT method replaces all current representations of the target
             # resource with the request payload.
+            # @first_parameter == place to put the target
+            # @second_parameter == target
             elif command == 'move':
-                pass
+                if self.msg_class != 0 or self.msg_code != 3:
+                    message = f"#406 Method Not Acceptable due to Code/Class not matching function <- From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(6)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                parameters = parameters.split(" ")
+                if len(parameters) != 2:
+                    message = f"#405 Method Not Allowed. {command} needs two parameter! <- " \
+                              f"From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(5)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                path = parameters[0]
+                target = parameters[1]
+                value = file_system.FileSystem.move(path, target)
+                if value == 0:
+                    message = f"#403 Forbidden Path {path}. From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(3)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                elif value == 1:
+                    message = f"#405 Method {command} not allowed HERE. Already Exists. From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(5)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                elif value == 2:
+                    message = f"#405 Method {command} not allowed HERE. Target not in CWD-From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(5)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                elif value == 3:
+                    message = f"#204 Changed Path to {path}. From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # success
+                    response.set_msg_class(2)
+                    response.set_msg_code(4)
+                    response.set_payload_marker(0xff)
+                    response.set_server_payload(f"{command}", message)
+                    return response
 
             # DELETE delete (0.04) -> server returns 2.02 (Deleted) or error
             elif command == 'delete':
-                pass
+                if self.msg_class != 0 or self.msg_code != 4:
+                    message = f"#406 Method Not Acceptable due to Code/Class not matching function <- From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(6)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                parameters = parameters.split(" ")
+                if len(parameters) != 1:
+                    message = f"#405 Method Not Allowed. {command} needs 1 parameter! <- " \
+                              f"From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(5)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                target = parameters[0]
+                value = file_system.FileSystem.delete(target)
+                if value == 0:
+                    message = f"#403 Forbidden Path. From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(3)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                elif value == 1:
+                    message = f"#405 Target {target} not found. From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(5)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                elif value in [2, 3]:
+                    message = f"#202 {target} deleted. From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # success
+                    response.set_msg_class(2)
+                    response.set_msg_code(2)
+                    response.set_payload_marker(0xff)
+                    response.set_server_payload(f"{command}", message)
+                    return response
 
             # RENAME rename (0.08) -> server returns 2.04 (Changed) or error
             # Renames file/directory
             elif command == 'rename':
-                pass
+                if self.msg_class != 0 or self.msg_code != 8:
+                    message = f"#406 Method Not Acceptable due to Code/Class not matching function <- From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(6)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                parameters = parameters.split(" ")
+                if len(parameters) != 2:
+                    message = f"#405 Method Not Allowed. {command} needs two parameters! <- " \
+                              f"From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(5)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                old_file = parameters[0]
+                new_file = parameters[1]
+                value = file_system.FileSystem.rename(old_file, new_file)
+                if value == 0:
+                    message = f"#403 Forbidden HERE. From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(3)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                elif value == 1:
+                    message = f"#405 Method not allowed. Both parameters need arguments. From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(5)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                elif value == 2:
+                    message = f"#405 Old file {old_file} not found. From client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(5)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                elif value == 3:
+                    message = f"#405 Old file {old_file} already exists. From client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(5)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                elif value == 4:
+                    message = f"#204 {old_file} renamed to {new_file}. From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # success
+                    response.set_msg_class(2)
+                    response.set_msg_code(4)
+                    response.set_payload_marker(0xff)
+                    response.set_server_payload(f"{command}", message)
+                    return response
 
             # other commands, good for server
             # remove client address if command is 'disconnected'

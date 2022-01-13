@@ -112,7 +112,7 @@ def main():
                 my_message.set_msg_code(3)
             elif command == 'delete':
                 my_message.set_msg_class(0)
-                my_message.set_msg_code(3)
+                my_message.set_msg_code(4)
             elif command == 'rename':
                 my_message.set_msg_class(0)
                 my_message.set_msg_code(8)
@@ -126,7 +126,7 @@ def main():
                 command = ""
                 parameters = ""
 
-            if message_type in [0, 1]:
+            if message_type in [0, 2]:
                 my_message.set_msg_type(message_type)
             else:
                 my_message.set_msg_type(1)  # non confirmable
