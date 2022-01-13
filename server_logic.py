@@ -127,32 +127,13 @@ class Logic:
         cls.server_client = address
 
         # data is of type packed_data
-        header_format, encoded_json = cls.server_received_message.get_header_message(data)
+        header_format, encoded_json = message.get_header_message2(data)
 
         # decode message so that it can be understood in decimal
         cls.server_received_message.decode_message(header_format, encoded_json)
+        cls.server_received_message.print_details()
 
         # verify header format from data and do CoAP Codes
         cls.server_response_message = cls.server_received_message.verify_format()
-        cls.data = cls.server_response_message.encode_message()
-
-    @classmethod
-    def disconnect_client(cls):  # 499 Client Closed Request
-        # disconnecting targeted client
-        cls.client_adresses.remove(cls.server_client)
-
-        response = message.Message('Server')
-        response.set_msg_version(1)
-        response.set_msg_token_length(1)
-        response.set_msg_id(0xffff)
-        response.set_token(0)
-        response.set_payload_marker(0xff)
-
-        response.set_msg_class(4)
-        response.set_msg_code(9)
-        response.set_msg_type(9)
-        response.set_payload_marker(0xff)
-        response.set_payload("Adress " + cls.server_client + " Disconnected!")
-
-        cls.message_clients(response)
-        cls.server_client = None
+        if cls.server_response_message is not None:
+            cls.data = cls.server_response_message.encode_message()

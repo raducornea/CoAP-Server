@@ -12,6 +12,12 @@ def unpack_helper(fmt, data):
     return struct.unpack(fmt, data[:size]), data[size:]
 
 
+def get_header_message2(message):
+    header_format, encoded_json = unpack_helper('i i i i i i ', message)
+    encoded_json = encoded_json.replace(b'\x00', b'')
+    return header_format, encoded_json
+
+
 class Message:
     def __init__(self, architecture_type):
         self.architecture_type = architecture_type  # server / client
@@ -176,7 +182,22 @@ class Message:
 
             # payload_marker == 0 -> len(payload) == 0
             # payload_marker > 0 && len(payload) == 0 => Message Format Error
-            if self.payload_marker > 0 and command == "" and parameters == "":
+
+            # if the client gives the *NOTHING* message, give it back without checking others
+            self.print_details()
+            if self.msg_class == 0 and self.msg_code == 0 and command == "" and parameters == "" and self.payload_marker == 0:
+                message = f"#000 Success. Client {targeted_client} gave #000 Empty Message."
+                server_gui.GUI.print_message(message)
+
+                # success
+                response.set_msg_class(0)
+                response.set_msg_code(0)
+                response.set_payload_marker(0)
+                response.set_server_payload("", "")
+                return response
+
+            print(f"ceva{self.payload_marker}ceva")
+            if self.payload_marker != 0 and command == "" and parameters == "":
                 message = f"#400 Bad Request - Client {targeted_client} Formatting Error - Payload"
                 server_gui.GUI.print_message(message)
 
@@ -188,18 +209,6 @@ class Message:
                 response.set_server_payload("", "")
                 return response
             # now the server verified if all the fields are completed correctly
-
-            # if the client gives the *NOTHING* message, give it back without checking others
-            if self.msg_code == 0 and self.msg_class == 0 and command == "" and parameters == "" and self.payload_marker == 0:
-                message = f"#200 Success. Client {targeted_client} gave #000 Empty Message ."
-                server_gui.GUI.print_message(message)
-
-                # success
-                response.set_msg_class(2)
-                response.set_msg_code(0)
-                response.set_payload_marker(0)
-                response.set_server_payload("", "")
-                return response
 
             # verify if the command is in the list of allowed_commands
             if command not in file_system.FileSystem.allowed_commands:
@@ -216,7 +225,9 @@ class Message:
             # if the client passed these tests, it means that the header is acceptable and the command is allowed
 
             # make sure that the command given matches the (parameters + code/class)
-            # GET
+            # GET cwd, ls (0.01) -> server returns 2.05 (Content) or error
+            # The GET method requests a representation of the specified resource.
+            # Requests using GET should only retrieve data.
             if command in ['cwd', 'ls']:
                 # cwd/ls must be executed alone
                 if parameters != "":
@@ -281,20 +292,169 @@ class Message:
                     response.set_msg_class(2)
                     response.set_msg_code(5)
                     response.set_payload_marker(0xff)
-                    response.set_server_payload("cwd", result)
+                    response.set_server_payload("ls", result)
                     return response
 
-            response.set_server_payload(command, 'A MERS???')
+            # POST newDir, newFile, chdir (0.02) -> server returns 2.01 (Created) or error
+            # The POST method submits an entity to the specified resource,
+            # often causing a change in state or side effects on the server.
+            elif command in ['newDir', 'newFile', 'chdir']:
+                parameters = parameters.split(" ")
+                if len(parameters) != 1:
+                    message = f"#405 Method Not Allowed. {command} needs one parameter! <- " \
+                              f"From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
 
-            # remove client address if command is 'disconnected' - should not care about the message format
-            if command == 'disconnect':
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(5)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                parameters = parameters[0]
+                if parameters == "":
+                    message = f"#405 Method Not Allowed. Parameter must be completed! <- " \
+                              f"From Client {targeted_client}"
+                    server_gui.GUI.print_message(message)
+
+                    # reset
+                    response.set_msg_type(3)
+                    response.set_msg_class(4)
+                    response.set_msg_code(5)
+                    response.set_payload_marker(0)
+                    response.set_server_payload("", "")
+                    return response
+
+                if command == 'newDir':
+                    value = file_system.FileSystem.new_directory(parameters)
+                    if value == 0:
+                        message = f"#403 Method {command} Forbidden Here. Choose another location! <- " \
+                                  f"From Client {targeted_client}"
+                        server_gui.GUI.print_message(message)
+
+                        # reset
+                        response.set_msg_type(3)
+                        response.set_msg_class(4)
+                        response.set_msg_code(5)
+                        response.set_payload_marker(0)
+                        response.set_server_payload("", "")
+                        return response
+
+                    elif value == 1:
+                        message = f"#202 Created Directory. Method {command} {parameters}. From Client {targeted_client}"
+                        server_gui.GUI.print_message(message)
+
+                        # success
+                        response.set_msg_class(2)
+                        response.set_msg_code(5)
+                        response.set_payload_marker(0xff)
+                        response.set_server_payload("newDir", message)
+                        return response
+
+                    elif value == 2:
+                        message = f"#405 Method Not Allowed. {parameters} Already exist. From Client {targeted_client}"
+                        server_gui.GUI.print_message(message)
+
+                        # reset
+                        response.set_msg_type(3)
+                        response.set_msg_class(4)
+                        response.set_msg_code(5)
+                        response.set_payload_marker(0)
+                        response.set_server_payload("", "")
+                        return response
+
+                elif command == 'newFile':
+                    value = file_system.FileSystem.new_file(parameters)
+                    if value == 0:
+                        message = f"#403 Method {command} Forbidden Here. Choose another location! <- " \
+                                  f"From Client {targeted_client}"
+                        server_gui.GUI.print_message(message)
+
+                        # reset
+                        response.set_msg_type(3)
+                        response.set_msg_class(4)
+                        response.set_msg_code(5)
+                        response.set_payload_marker(0)
+                        response.set_server_payload("", "")
+                        return response
+
+                    elif value == 1:
+                        message = f"#202 Created File. Method {command} { parameters}. From Client {targeted_client}"
+                        server_gui.GUI.print_message(message)
+
+                        # success
+                        response.set_msg_class(2)
+                        response.set_msg_code(5)
+                        response.set_payload_marker(0xff)
+                        response.set_server_payload("newFile", message)
+                        return response
+
+                    elif value == 2:
+                        message = f"#405 Method Not Allowed. {parameters} Already exist. From Client {targeted_client}"
+                        server_gui.GUI.print_message(message)
+
+                        # reset
+                        response.set_msg_type(3)
+                        response.set_msg_class(4)
+                        response.set_msg_code(5)
+                        response.set_payload_marker(0)
+                        response.set_server_payload("", "")
+                        return response
+
+                elif command == 'chdir':
+                    value = file_system.FileSystem.set_path(parameters)
+                    if value == 0:
+                        message = f"#202 Changed Directory to {parameters}. From Client {targeted_client}"
+                        server_gui.GUI.print_message(message)
+
+                        # success
+                        response.set_msg_class(2)
+                        response.set_msg_code(5)
+                        response.set_payload_marker(0xff)
+                        response.set_server_payload(f"{command}", message)
+                        return response
+
+                    elif value == 1:
+                        message = f"#405 Method Not Allowed. {parameters} does not exist. From Client {targeted_client}"
+                        server_gui.GUI.print_message(message)
+
+                        # reset
+                        response.set_msg_type(3)
+                        response.set_msg_class(4)
+                        response.set_msg_code(5)
+                        response.set_payload_marker(0)
+                        response.set_server_payload("", "")
+                        return response
+
+            # PUT move (0.03) -> server returns 2.04 (Changed) or error
+            # The PUT method replaces all current representations of the target
+            # resource with the request payload.
+            elif command == 'move':
+                pass
+
+            # DELETE delete (0.04) -> server returns 2.02 (Deleted) or error
+            elif command == 'delete':
+                pass
+
+            # RENAME rename (0.08) -> server returns 2.04 (Changed) or error
+            # Renames file/directory
+            elif command == 'rename':
+                pass
+
+            # other commands, good for server
+            # remove client address if command is 'disconnected'
+            elif command == 'disconnect':
+                # 499 Client Closed Request
                 # forcefully disconnect client and announce other clients of it's disconnection
-                server_logic.Logic.disconnect_client()
-                return
+                # disconnecting targeted client
+                message = f"#499 Client {targeted_client} Closed Request"
+                server_gui.GUI.print_message(message)
+                server_logic.Logic.client_adresses.remove(server_logic.Logic.server_client)
 
-            # if both command and parameters are recognized, continue unit tests
-            print(command)
-            print(parameters)
+                server_logic.Logic.server_client = None
+                return None
 
             return response
         else:
@@ -329,7 +489,7 @@ class Message:
 
         self.msg_id = (message[2] << 8) | message[3]
 
-        self.payload_marker = (message[3])
+        self.payload_marker = message[5]
         self.payload = encoded_json
 
         self.token = 0
@@ -409,6 +569,9 @@ class Message:
     def get_payload(self):
         return self.payload
 
+    def get_payload_marker(self):
+        return self.payload_marker
+
     def print_details(self):
         print("We are printing the message format...")
         print("VERSION: " + str(self.get_version()))
@@ -416,4 +579,6 @@ class Message:
         print("CLASS.CODE: " + (str(self.get_class()) + "." + str(self.get_code())))
         print("MESSAGE ID: " + str(self.get_message_id()))
         print("Token: " + str(self.get_token()))
+        print("Payload Marker: " + str(self.get_payload_marker()))
         print("Payload: " + str(self.get_payload()))
+

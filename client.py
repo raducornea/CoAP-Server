@@ -24,6 +24,7 @@ def receive_fct(s):
 
             # data is of type packed_data
             header_format, encoded_json = client_received_message.get_header_message(data)
+            print(header_format)
 
             # decode message so that it can be understood in decimal
             client_received_message.decode_message(header_format, encoded_json)
@@ -61,29 +62,12 @@ def main():
 
     while True:
         try:
+            print("\n")
             command = input("Command: ")  # 'cwd', 'ls', 'rename'
             parameters = input("Parameters: ")  # old_name new_name
             message_type = int(input("Message Type # 0 conf 1 non-conf 2 ack 3 reset = "))  # int
 
             """
-            GET - cwd, ls -> 0.01 -> GET-> response should be 2.05 (Content)
-            The GET method requests a representation of the specified resource. Requests using GET should only 
-            retrieve data.
-
-            POST -> 0.02 - newDir, newFile -> response 2.01 (Created)
-            The POST method submits an entity to the specified resource, often causing a change in state or side effects 
-            on the server.
-
-            PUT -> 0.03 - (move) file and directories? -> 2.04 (Changed)
-            The PUT method replaces all current representations of the target resource with the request payload.
-
-            RENAME -> 0.08 - rename -> 2.04 (Changed) Response 
-            Renames file/directory
-            
-            2.00
-            This class of Response Code indicates that the clients request was
-            successfully received, understood, and accepted.
-            
             4.04 Not Found ??? -> Client
             This Response Code is like HTTP 404 "Not Found".
             
@@ -93,11 +77,14 @@ def main():
             5.01 Not Implemented -> Server
             This Response Code is like HTTP 501 "Not Implemented".
             
-            | 2.01 | Created                   
-            | 2.04 | Changed                   
-            | 2.05 | Content      
+            | 2.00 | Client Sent Message (Null message)
+            | 2.01 | Created
+            | 2.02 | Deleted
+            | 2.04 | Changed
+            | 2.05 | Content
 
-            | 4.00 | Bad Request
+            | 4.00 | Bad Request - coap version and stuff
+            | 4.03 | Forbidden - ACCESS DENIED BY SERVER
             | 4.05 | Method Not Allowed - for commands not in the list
             | 4.06 | Not Acceptable - probably for payload marker not respected
             
@@ -117,15 +104,27 @@ def main():
             if command in ['cwd', 'ls']:
                 my_message.set_msg_class(0)
                 my_message.set_msg_code(1)
-            elif command in ['newDir', 'newFile']:
+            elif command in ['newDir', 'newFile', 'chdir']:
                 my_message.set_msg_class(0)
                 my_message.set_msg_code(2)
-            elif command == ['move']:
+            elif command == 'move':
                 my_message.set_msg_class(0)
                 my_message.set_msg_code(3)
-            elif command == ['rename']:
+            elif command == 'delete':
+                my_message.set_msg_class(0)
+                my_message.set_msg_code(3)
+            elif command == 'rename':
                 my_message.set_msg_class(0)
                 my_message.set_msg_code(8)
+            elif command == 'disconnect':
+                my_message.set_msg_class(0)
+                my_message.set_msg_code(4)
+            elif command == "" and parameters == "":
+                my_message.set_msg_class(0)
+                my_message.set_msg_code(0)
+                my_message.set_payload_marker(0x00)
+                command = ""
+                parameters = ""
 
             if message_type in [0, 1]:
                 my_message.set_msg_type(message_type)
@@ -133,7 +132,11 @@ def main():
                 my_message.set_msg_type(1)  # non confirmable
 
             my_message.set_client_payload(command, parameters)
+            print(my_message.get_payload_marker())
             packed_data = my_message.encode_message()
+            header_format, encoded_json = message.unpack_helper('i i i i i i ', packed_data)
+            print(header_format)
+
             s.sendto(packed_data, (server_ip, int(server_port)))
 
         except KeyboardInterrupt:
