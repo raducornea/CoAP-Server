@@ -757,8 +757,8 @@ class Message:
         message[0] |= (self.msg_token_length & 0x0F)
 
         """ al doilea octet format din clasa si cod (3 + 5) """
-        # ((11 & msg_class) << 5) = 8 biti
-        message.append((0x03 & self.msg_class) << 5)
+        # ((111 & msg_class) << 5) = 8 biti
+        message.append((0x07 & self.msg_class) << 5)
 
         # aduni (0001 1111 & msg_code) la message[1] si obtii class + code
         message[1] |= (self.msg_code & 0x1F)
